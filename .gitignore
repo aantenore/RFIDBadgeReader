@@ -1,0 +1,21 @@
+# Ignora i file di configurazione di sistema
+.classpath
+.project
+.settings/
+
+# Ignora i file generati dal compilatore Java
+target/
+
+# Ignora i file di log
+*.log
+
+# Ignora i file di backup
+*~
+
+# Ignora i file temporanei
+.tmp/
+
+# Ignora le cartelle che iniziano con "Lettore_Bage"
+Lettore_Badge*/
+*.zip
+.idea
