@@ -11,6 +11,13 @@ import dto.InputEncoded;
 import lombok.SneakyThrows;
 import org.usb4java.Device;
 
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.io.*;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import java.util.function.Function;
 
@@ -18,6 +25,35 @@ public class BadgeApp {
     public static void main(String[] args) throws Exception {
         while (true) {
             try {
+                if (SystemTray.isSupported()) {
+                    Image iconImage = Toolkit.getDefaultToolkit().getImage(BadgeApp.class.getResource("icon.png"));
+                    PopupMenu popupMenu = new PopupMenu();
+
+                    JTextArea textArea = new JTextArea(30, 60);
+                    textArea.setEditable(false);
+                    textArea.setFont(new Font("Arial", Font.PLAIN, 14));
+                    PrintStream printStream = new PrintStream(new ByteArrayOutputStream() {
+                        @Override
+                        @SneakyThrows
+                        public synchronized void flush() {
+                            textArea.append(toString(StandardCharsets.UTF_8.name()));
+                            super.reset();
+                        }
+                    }, true, StandardCharsets.UTF_8.name());
+                    System.setOut(printStream);
+                    MenuItem viewLogItem = new MenuItem("Visualizza log");
+                    viewLogItem.addActionListener(e -> showLogs(textArea));
+                    popupMenu.add(viewLogItem);
+
+                    MenuItem closeItem = new MenuItem("Chiudi Lettore Badge");
+                    closeItem.addActionListener(e -> System.exit(0));
+                    popupMenu.add(closeItem);
+
+                    TrayIcon trayIcon = new TrayIcon(iconImage, "Lettore badge", popupMenu);
+                    trayIcon.setImageAutoSize(true);
+                    SystemTray tray = SystemTray.getSystemTray();
+                    tray.add(trayIcon);
+                }
                 start();
                 while (true) {
                 }
@@ -27,6 +63,17 @@ public class BadgeApp {
                 Thread.sleep(10000);
             }
         }
+    }
+
+    @SneakyThrows
+    private static void showLogs(JTextArea textArea) {
+        JScrollPane scrollPane = new JScrollPane(textArea);
+        JFrame logFrame = new JFrame("Log");
+        logFrame.add(scrollPane);
+        logFrame.pack();
+        logFrame.setVisible(true);
+        logFrame.setIconImage(Toolkit.getDefaultToolkit().getImage(BadgeApp.class.getResource("icon.png")));
+
     }
 
     private static void start() throws Exception {

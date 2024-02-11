@@ -3,6 +3,7 @@ package component.impl;
 import component.WriterManager;
 import dto.InputDecoded;
 import lombok.SneakyThrows;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.openxml4j.opc.OPCPackage;
 import org.apache.poi.openxml4j.opc.PackageAccess;
 import org.apache.poi.poifs.crypt.Decryptor;
@@ -10,10 +11,7 @@ import org.apache.poi.poifs.crypt.EncryptionInfo;
 import org.apache.poi.poifs.crypt.EncryptionMode;
 import org.apache.poi.poifs.crypt.Encryptor;
 import org.apache.poi.poifs.filesystem.POIFSFileSystem;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import util.CommonUtil;
 
@@ -175,55 +173,80 @@ public class XlsxWriterImpl implements WriterManager<InputDecoded> {
 
     private void addInputToExcel(Workbook workbook, InputDecoded inputDecoded) {
         Sheet sheet = workbook.getSheetAt(0);
+
+        for (int i = sheet.getLastRowNum(); i >= 0; i--) {
+            Row row = sheet.getRow(i);
+            if (row != null && row.getCell(0) != null && row.getCell(0).getCellType() == CellType.BLANK) {
+                sheet.removeRow(row);
+            }
+        }
+
         int lastRowNum = sheet.getLastRowNum();
+
         if (lastRowNum < 0) {
             lastRowNum++;
+
+            int columnIndex = 0;
             Row headerRow = sheet.createRow(lastRowNum);
-            Cell employeeCell = headerRow.createCell(0);
+
+            Cell employeeCell = headerRow.createCell(columnIndex++);
             employeeCell.setCellValue("Codice");
 
-            Cell whenCellDay = headerRow.createCell(1);
+            Cell dateRow = headerRow.createCell(columnIndex++);
+            dateRow.setCellValue("Data");
+
+            Cell hourRow = headerRow.createCell(columnIndex++);
+            hourRow.setCellValue("Orario");
+
+            Cell whenCellDay = headerRow.createCell(columnIndex++);
             whenCellDay.setCellValue("Giorno");
 
-            Cell whenCellMonth = headerRow.createCell(2);
+            Cell whenCellMonth = headerRow.createCell(columnIndex++);
             whenCellMonth.setCellValue("Mese");
 
-            Cell whenCellYear = headerRow.createCell(3);
+            Cell whenCellYear = headerRow.createCell(columnIndex++);
             whenCellYear.setCellValue("Anno");
 
-            Cell whenCellHours = headerRow.createCell(4);
+            Cell whenCellHours = headerRow.createCell(columnIndex++);
             whenCellHours.setCellValue("Ore");
 
-            Cell whenCellMinutes = headerRow.createCell(5);
+            Cell whenCellMinutes = headerRow.createCell(columnIndex++);
             whenCellMinutes.setCellValue("Minuti");
 
-            Cell whenCellSeconds = headerRow.createCell(6);
+            Cell whenCellSeconds = headerRow.createCell(columnIndex++);
             whenCellSeconds.setCellValue("Secondi");
         }
 
+        int columnIndex = 0;
         Row newRow = sheet.createRow(lastRowNum + 1);
 
-        Cell employeeCell = newRow.createCell(0);
+        Cell employeeCell = newRow.createCell(columnIndex++);
         employeeCell.setCellValue(String.valueOf(inputDecoded.getCode()));
 
         LocalDateTime when = inputDecoded.getWhen();
 
-        Cell whenCellDay = newRow.createCell(1);
+        Cell dateRow = newRow.createCell(columnIndex++);
+        dateRow.setCellValue(when.getDayOfMonth() + "/" + when.getMonthValue() + "/" + when.getYear());
+
+        Cell hourRow = newRow.createCell(columnIndex++);
+        hourRow.setCellValue(when.getHour() + ":" + when.getMinute());
+
+        Cell whenCellDay = newRow.createCell(columnIndex++);
         whenCellDay.setCellValue(when.getDayOfMonth());
 
-        Cell whenCellMonth = newRow.createCell(2);
+        Cell whenCellMonth = newRow.createCell(columnIndex++);
         whenCellMonth.setCellValue(when.getMonthValue());
 
-        Cell whenCellYear = newRow.createCell(3);
+        Cell whenCellYear = newRow.createCell(columnIndex++);
         whenCellYear.setCellValue(when.getYear());
 
-        Cell whenCellHours = newRow.createCell(4);
+        Cell whenCellHours = newRow.createCell(columnIndex++);
         whenCellHours.setCellValue(when.getHour());
 
-        Cell whenCellMinutes = newRow.createCell(5);
+        Cell whenCellMinutes = newRow.createCell(columnIndex++);
         whenCellMinutes.setCellValue(when.getMinute());
 
-        Cell whenCellSeconds = newRow.createCell(6);
+        Cell whenCellSeconds = newRow.createCell(columnIndex++);
         whenCellSeconds.setCellValue(when.getSecond());
     }
 
