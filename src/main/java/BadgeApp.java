@@ -23,9 +23,12 @@ import java.util.function.Function;
 
 public class BadgeApp {
     public static void main(String[] args) throws Exception {
+
+        boolean trayIconMounted = false;
+
         while (true) {
             try {
-                if (SystemTray.isSupported()) {
+                if (!trayIconMounted && SystemTray.isSupported()) {
                     Image iconImage = Toolkit.getDefaultToolkit().getImage(BadgeApp.class.getResource("icon.png"));
                     PopupMenu popupMenu = new PopupMenu();
 
@@ -53,6 +56,7 @@ public class BadgeApp {
                     trayIcon.setImageAutoSize(true);
                     SystemTray tray = SystemTray.getSystemTray();
                     tray.add(trayIcon);
+                    trayIconMounted = true;
                 }
                 start();
                 while (true) {
