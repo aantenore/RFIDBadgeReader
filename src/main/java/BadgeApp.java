@@ -63,8 +63,9 @@ public class BadgeApp {
                 }
             } catch (Exception e) {
                 e.printStackTrace();
-                System.out.println("Il programma si riavvierà automaticamente tra 10 secondi.");
+                System.out.println("Il programma si chiuderà automaticamente tra 10 secondi.");
                 Thread.sleep(10000);
+                System.exit(-1);
             }
         }
     }
