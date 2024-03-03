@@ -3,22 +3,15 @@ package component.impl;
 import component.WriterManager;
 import dto.InputDecoded;
 import lombok.SneakyThrows;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.poi.openxml4j.opc.OPCPackage;
-import org.apache.poi.openxml4j.opc.PackageAccess;
-import org.apache.poi.poifs.crypt.Decryptor;
-import org.apache.poi.poifs.crypt.EncryptionInfo;
-import org.apache.poi.poifs.crypt.EncryptionMode;
-import org.apache.poi.poifs.crypt.Encryptor;
-import org.apache.poi.poifs.filesystem.POIFSFileSystem;
+import org.apache.poi.hssf.record.crypto.Biff8EncryptionKey;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import util.CommonUtil;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.OutputStream;
+import java.io.IOException;
 import java.nio.channels.FileLock;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
@@ -31,7 +24,6 @@ public class XlsxWriterImpl implements WriterManager<InputDecoded> {
 
     private String outputFileName;
     private String password;
-    private String today;
     private Queue<InputDecoded> pendingWrites;
     private int failures;
     private Workbook workbook;
@@ -51,143 +43,36 @@ public class XlsxWriterImpl implements WriterManager<InputDecoded> {
         return props;
     }
 
-    private Workbook getOrCreateWorkbook(String absoluteFileName) throws Exception {
+    @SneakyThrows
+    private Workbook getOrCreateWorkbook(String absoluteFileName) {
         File file = new File(absoluteFileName);
-        if (!file.exists()) {
-            file.createNewFile();
-            //System.out.println("File does not exist, creating");
-            Workbook newWorkbook = new XSSFWorkbook();
-            newWorkbook.createSheet("-");
-            try (FileOutputStream fileOutputStream = new FileOutputStream(file)) {
-                newWorkbook.write(fileOutputStream);
-            }
-            setPassword(absoluteFileName);
-            return newWorkbook;
+        Workbook newWorkbook;
+
+        if (!file.exists() || file.length() == 0) {
+            //System.out.println("File is empty, returning a new workbook");
+            newWorkbook = new HSSFWorkbook();
+            writeToFile(file, newWorkbook);
         } else {
-            //System.out.println("File exists, returning");
-            if (file.length() == 0) {
-                //System.out.println("File is empty, returning a new workbook");
-                Workbook newWorkbook = new XSSFWorkbook();
-                newWorkbook.createSheet("-");
-                return newWorkbook;
-            } else {
-                //You are calling the part of POI that deals with OLE2 Office Documents. You need to call a different part of POI to process this data (eg XSSF instead of HSSF)
-                //System.out.println("File is not empty, returning the existing workbook");
-                try (
+            //You are calling the part of POI that deals with OLE2 Office Documents. You need to call a different part of POI to process this data (eg XSSF instead of HSSF)
+            //System.out.println("File is not empty, returning the existing workbook");
+            try (
                     FileInputStream fileInputStream = new FileInputStream(file);
-                    POIFSFileSystem fs = new POIFSFileSystem(fileInputStream);
-                ) {
-                    EncryptionInfo info = new EncryptionInfo(fs);
-                    Decryptor d = Decryptor.getInstance(info);
-                    d.verifyPassword(password);
-                    return new XSSFWorkbook(d.getDataStream(fs));
-                }
-            }
-        }
-    }
-
-    private String getCurrentOutputFileName() {
-        return CommonUtil.getAbsolutePath(
-            outputFileName.replace(
-        "{date}",
-                getToday()
-            )
-        );
-    }
-
-    private String getToday() {
-        return new SimpleDateFormat("yyyyMMdd").format(new Date());
-    }
-
-    @Override
-    public Void write(InputDecoded inputDecoded) throws Exception{
-        inputDecoded.setFileName(getCurrentOutputFileName());
-        putInputInQueue(inputDecoded);
-        return null;
-    }
-
-    private void putInputInQueue(InputDecoded inputDecoded) {
-        pendingWrites.add(inputDecoded);
-        new Timer().schedule(new TimerTask() {
-            @SneakyThrows
-            @Override public void run() {
-                writeLogic();
-            }
-
-            private void writeLogic() {
-                try {
-                    if(!pendingWrites.isEmpty()) {
-                        InputDecoded inputToWrite = pendingWrites.peek();
-                        String fileName = inputToWrite.getFileName();
-                        workbook = getOrCreateWorkbook(fileName);
-                        synchronized (workbook) {
-                            try(
-                                FileOutputStream fileOut = new FileOutputStream(fileName)
-                            ) {
-                                FileLock lock = fileOut.getChannel().tryLock();
-                                if (lock != null && !pendingWrites.isEmpty()) {
-                                    failures = 0;
-                                    lock.release();
-                                    addInputToExcel(workbook, inputToWrite);
-                                    System.out.println("Scritto su file " + fileName + " il codice rilevato: " + inputToWrite.getCode());
-                                    workbook.write(fileOut);
-                                    //System.out.println("Salvato file " + fileName);
-                                    setPassword(fileName);
-                                    pendingWrites.poll();
-                                }
-                            }
-                        }
-                    }
-                } catch (Exception e) {
-                    failures ++;
-                    new Timer().schedule(new TimerTask() {
-                        @SneakyThrows
-                        @Override public void run() {
-                            writeLogic();
-                        }
-                    }, new Double(Math.pow(2, failures)).longValue() * 1000);
-                    System.out.println("Errore durante la scrittura su file (forse devi chiudere il file), metto la scrittura in coda. Riprovo a scrivere tra: " + new Double(Math.pow(2, failures)).intValue() + " secondi");
-                    //e.printStackTrace();
-                } finally {
-                    cancel();
-                }
-            }
-        }, new Double(Math.pow(2, failures)).longValue() * 1000, new Double(Math.pow(2, failures)).longValue() * 1000);
-        //System.out.println("Il file Excel è già aperto da un altro processo. Aspetto");
-    }
-
-    private void setPassword(String fileName) throws Exception {
-        try(POIFSFileSystem fs=new POIFSFileSystem()) {
-            EncryptionInfo info=new EncryptionInfo(EncryptionMode.agile);
-            Encryptor enc=info.getEncryptor();
-            enc.confirmPassword(password);
-            try(OPCPackage opc=OPCPackage.open(new File(fileName), PackageAccess.READ_WRITE);
-                OutputStream os=enc.getDataStream(fs)) {
-                opc.save(os);
-            }
-            try (FileOutputStream fos=new FileOutputStream(fileName)){
-                fs.writeFilesystem(fos);
-            }
-        }
-    }
-
-    private void addInputToExcel(Workbook workbook, InputDecoded inputDecoded) {
-        Sheet sheet = workbook.getSheetAt(0);
-
-        for (int i = sheet.getLastRowNum(); i >= 0; i--) {
-            Row row = sheet.getRow(i);
-            if (row != null && row.getCell(0) != null && row.getCell(0).getCellType() == CellType.BLANK) {
-                sheet.removeRow(row);
+            ) {
+                newWorkbook = WorkbookFactory.create(fileInputStream, password);
             }
         }
 
-        int lastRowNum = sheet.getLastRowNum();
+        return newWorkbook;
+    }
 
-        if (lastRowNum < 0) {
-            lastRowNum++;
+    private static void initWorkbook(Workbook newWorkbook) {
+        Sheet sheet = newWorkbook.getNumberOfSheets()>0?
+                newWorkbook.getSheetAt(0):
+                newWorkbook.createSheet("-");
 
+        if (sheet.getLastRowNum() < 0) {
+            Row headerRow = sheet.createRow(0);
             int columnIndex = 0;
-            Row headerRow = sheet.createRow(lastRowNum);
 
             Cell employeeCell = headerRow.createCell(columnIndex++);
             employeeCell.setCellValue("Codice");
@@ -216,6 +101,96 @@ public class XlsxWriterImpl implements WriterManager<InputDecoded> {
             Cell whenCellSeconds = headerRow.createCell(columnIndex++);
             whenCellSeconds.setCellValue("Secondi");
         }
+    }
+
+    private void writeToFile(File file, Workbook workbook) throws IOException {
+        try (FileOutputStream fileOutputStream = new FileOutputStream(file)) {
+            Biff8EncryptionKey.setCurrentUserPassword(password);
+            workbook.write(fileOutputStream);
+        }
+    }
+
+    private String getCurrentOutputFileName() {
+        return CommonUtil.getAbsolutePath(
+            outputFileName.replace(
+        "{date}",
+                getToday()
+            )
+        );
+    }
+
+    private String getToday() {
+        return new SimpleDateFormat("yyyyMMdd").format(new Date());
+    }
+
+    @Override
+    public Void write(InputDecoded inputDecoded) {
+        inputDecoded.setFileName(getCurrentOutputFileName());
+        putInputInQueue(inputDecoded);
+        return null;
+    }
+
+    private void putInputInQueue(InputDecoded inputDecoded) {
+        pendingWrites.add(inputDecoded);
+        new Timer().schedule(new TimerTask() {
+            @SneakyThrows
+            @Override public void run() {
+                writeLogic();
+            }
+
+            private void writeLogic() {
+                try {
+                    if(!pendingWrites.isEmpty()) {
+                        InputDecoded inputToWrite = pendingWrites.peek();
+                        String fileName = inputToWrite.getFileName();
+                        workbook = getOrCreateWorkbook(fileName);
+                        synchronized (workbook) {
+                            try(
+                                FileOutputStream fileOut = new FileOutputStream(fileName)
+                            ) {
+                                FileLock lock = fileOut.getChannel().tryLock();
+                                if (lock != null && !pendingWrites.isEmpty()) {
+                                    failures = 0;
+                                    initWorkbook(workbook);
+                                    addInputToExcel(workbook, inputToWrite);
+                                    lock.release();
+                                    writeToFile(new File(fileName), workbook);
+                                    System.out.println("Scritto su file " + fileName + " il codice rilevato: " + inputToWrite.getCode());
+                                    //System.out.println("Salvato file " + fileName);
+                                    pendingWrites.poll();
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace(System.out);
+                    failures ++;
+                    new Timer().schedule(new TimerTask() {
+                        @SneakyThrows
+                        @Override public void run() {
+                            writeLogic();
+                        }
+                    }, new Double(Math.pow(2, failures)).longValue() * 1000);
+                    System.out.println("Errore durante la scrittura su file (forse devi chiudere il file), metto la scrittura in coda. Riprovo a scrivere tra: " + new Double(Math.pow(2, failures)).intValue() + " secondi");
+                } finally {
+                    cancel();
+                }
+            }
+        }, new Double(Math.pow(2, failures)).longValue() * 1000, new Double(Math.pow(2, failures)).longValue() * 1000);
+        //System.out.println("Il file Excel è già aperto da un altro processo. Aspetto");
+    }
+
+    private void addInputToExcel(Workbook workbook, InputDecoded inputDecoded) {
+        Sheet sheet = workbook.getSheetAt(0);
+
+        for (int i = sheet.getLastRowNum(); i >= 0; i--) {
+            Row row = sheet.getRow(i);
+            if (row != null && row.getCell(0) != null && row.getCell(0).getCellType() == CellType.BLANK) {
+                sheet.removeRow(row);
+            }
+        }
+
+        int lastRowNum = sheet.getLastRowNum();
 
         int columnIndex = 0;
         Row newRow = sheet.createRow(lastRowNum + 1);
