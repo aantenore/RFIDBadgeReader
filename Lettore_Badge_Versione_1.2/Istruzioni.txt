@@ -1,0 +1,32 @@
+A - COSA FARE PRIMA DI USARE IL PROGRAMMA?
+
+	Doppio click su setup.bat, verranno installati i driver e il pc si riavvierà
+
+B - CONFIGURAZIONI AVANZATE (Non necessarie se non vuoi farle puoi passare al punto C)
+
+	Scegli i nomi dei file per configurare l'app, entra nel file "file.properties" nella cartella "app", se apri il file dentro puoi:
+
+		1. Modificare l'identificativo del lettore (se mai dovessi cambiarlo) da
+			"scanner.vendorId" e "scanner.productId"
+		2. Cambiare il file in cui associ a ogni carta cosa scrivere nel file che registra le entrate e uscite da
+			"employees.codes.file.name"
+		3. Cambiare il file su cui verranno registrate le entrate e uscite da
+			"employees.output.file.name"
+		4. Cambiare la password del file da
+			"employees.output.file.passw"
+		
+	SE NON DOVESSI MODIFICARE NULLA LA SITUAZIONE SARA' LA SEGUENTE
+	1. l'identificativo del lettore è già configurato.
+	2. I file che mappa ad ogni badge un codice da registrare nell'excel è "input/carte.xlsx", c'è già un esempio nel file.
+	3. Il file che registra ingressi e uscite è "output/entrate_uscite_{date}.xlsx"
+		NB. considera che ogni giorno il programma automaticamente ti creerà un nuovo file sostituendo a {date} la data odierna, se non ti piace e vuoi tutto in un unico file:
+			- entra nel file "file.properties" e cambia il nome del file rimuovendo "{date}", puoi mettere che nome vuoi.
+	4. La password del file che registra ingressi e uscite è "password"
+
+C - FAI PARTIRE L'APP
+
+	Clicca su start.bat, fino a quando quella finestra resta aperta (anche ridotta a icona) il programma resterà connesso al lettore e registrerà tutto sul file
+	
+ENJOY!
+	
+	

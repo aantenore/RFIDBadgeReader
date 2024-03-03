@@ -16,6 +16,6 @@ target/
 .tmp/
 
 # Ignora le cartelle che iniziano con "Lettore_Bage"
-Lettore_Badge*/
 *.zip
 .idea
+Lettore_Badge_Versione_1.2/app/java
