@@ -3,8 +3,8 @@ package component.impl;
 import component.Decoder;
 import dto.InputDecoded;
 import dto.InputEncoded;
-import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import util.CommonUtil;
 
 import java.io.FileInputStream;
@@ -35,7 +35,7 @@ public class XlsxWithTimestampDecoderImpl implements Decoder {
         decodingfileName = CommonUtil.getAbsolutePath(props.getProperty(decodingFileNameProperty));
         boolean xlsxHeader = Boolean.parseBoolean(props.getProperty(xlsxHeaderProperty));
 
-        Workbook decodingXlsx = new HSSFWorkbook(new FileInputStream(decodingfileName));
+        Workbook decodingXlsx = new XSSFWorkbook(new FileInputStream(decodingfileName));
         Sheet sheet = decodingXlsx.getSheetAt(0);
         Iterator<Row> rowIterator = sheet.iterator();
 

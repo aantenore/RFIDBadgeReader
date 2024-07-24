@@ -3,9 +3,8 @@ package component.impl;
 import component.WriterManager;
 import dto.InputDecoded;
 import lombok.SneakyThrows;
-import org.apache.poi.hssf.record.crypto.Biff8EncryptionKey;
-import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import util.CommonUtil;
 
 import java.io.File;
@@ -50,7 +49,7 @@ public class XlsxWriterImpl implements WriterManager<InputDecoded> {
 
         if (!file.exists() || file.length() == 0) {
             //System.out.println("File is empty, returning a new workbook");
-            newWorkbook = new HSSFWorkbook();
+            newWorkbook = new XSSFWorkbook();
             writeToFile(file, newWorkbook);
         } else {
             //You are calling the part of POI that deals with OLE2 Office Documents. You need to call a different part of POI to process this data (eg XSSF instead of HSSF)
