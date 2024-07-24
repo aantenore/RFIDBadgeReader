@@ -23,7 +23,7 @@ public class XlsxWriterImpl implements WriterManager<InputDecoded> {
     private static final String outputFilePasswordProperty = "employees.output.file.passw";
 
     private String outputFileName;
-    private String password;
+    //private String password;
     private Queue<InputDecoded> pendingWrites;
     private int failures;
     private Workbook workbook;
@@ -31,7 +31,7 @@ public class XlsxWriterImpl implements WriterManager<InputDecoded> {
     public XlsxWriterImpl() throws Exception {
         this.pendingWrites = new LinkedList();
         this.outputFileName = loadProps().getProperty(outputFileNameProperty);
-        this.password = loadProps().getProperty(outputFilePasswordProperty, "password");
+        //this.password = loadProps().getProperty(outputFilePasswordProperty, "password");
         this.failures = 0;
     }
 
@@ -58,7 +58,8 @@ public class XlsxWriterImpl implements WriterManager<InputDecoded> {
             try (
                     FileInputStream fileInputStream = new FileInputStream(file);
             ) {
-                newWorkbook = WorkbookFactory.create(fileInputStream, password);
+                //newWorkbook = WorkbookFactory.create(fileInputStream, password);
+                newWorkbook = WorkbookFactory.create(fileInputStream);
             }
         }
 
@@ -105,7 +106,7 @@ public class XlsxWriterImpl implements WriterManager<InputDecoded> {
 
     private void writeToFile(File file, Workbook workbook) throws IOException {
         try (FileOutputStream fileOutputStream = new FileOutputStream(file)) {
-            Biff8EncryptionKey.setCurrentUserPassword(password);
+            //Biff8EncryptionKey.setCurrentUserPassword(password);
             workbook.write(fileOutputStream);
         }
     }
