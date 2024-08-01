@@ -58,7 +58,7 @@ public class XlsxWriterImpl implements WriterManager<InputDecoded> {
                     FileInputStream fileInputStream = new FileInputStream(file);
             ) {
                 //newWorkbook = WorkbookFactory.create(fileInputStream, password);
-                newWorkbook = WorkbookFactory.create(fileInputStream);
+                newWorkbook = new XSSFWorkbook(fileInputStream);
             }
         }
 

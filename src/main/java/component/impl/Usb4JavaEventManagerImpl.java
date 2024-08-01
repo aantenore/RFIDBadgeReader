@@ -32,6 +32,7 @@ public class Usb4JavaEventManagerImpl implements EventManager<Device> {
             return handle;
         }
 
+
         throw new LibUsbException("Unable to read device descriptor", result);
     }
 
@@ -73,29 +74,36 @@ public class Usb4JavaEventManagerImpl implements EventManager<Device> {
             IntBuffer bufferSize = IntBuffer.allocate(1);
             ByteBuffer buffer = ByteBuffer.allocateDirect(inputByteLength);
             while (true) {
-                int result = LibUsb.bulkTransfer(handle, (byte) 0x81, buffer, bufferSize, READING_POLL_TIME_MS);
-                if (result == LibUsb.SUCCESS && bufferSize.get() > 0) {
-                    // Stampa l'input
-                    int bufferSizeInt = bufferSize.get(0);
-                    int groups = bufferSizeInt / SINGLE_CODE_ITEM_BYTE_SIZE;
-                    for (int i = 0; i < groups; i++) {
-                        byte[] groupBytes = new byte[SINGLE_CODE_ITEM_BYTE_SIZE];
-                        buffer.get(groupBytes);
-                        String decodedSingleInput = DeviceUtils.decodingMap.get(String.valueOf(groupBytes[2]));
-                        if (decodedSingleInput==null||"\n".equals(decodedSingleInput)) {
-                            break;
+                try {
+                    int result = LibUsb.bulkTransfer(handle, (byte) 0x81, buffer, bufferSize, READING_POLL_TIME_MS);
+                    if (result == LibUsb.SUCCESS && bufferSize.get() > 0) {
+                        // Stampa l'input
+                        int bufferSizeInt = bufferSize.get(0);
+                        int groups = bufferSizeInt / SINGLE_CODE_ITEM_BYTE_SIZE;
+                        for (int i = 0; i < groups; i++) {
+                            byte[] groupBytes = new byte[SINGLE_CODE_ITEM_BYTE_SIZE];
+                            buffer.get(groupBytes);
+                            String decodedSingleInput = DeviceUtils.decodingMap.get(String.valueOf(groupBytes[2]));
+                            if (decodedSingleInput == null || "\n".equals(decodedSingleInput)) {
+                                break;
+                            }
+                            inputBuffer.append(decodedSingleInput);
                         }
-                        inputBuffer.append(decodedSingleInput);
+                        doOnInput.accept(inputBuffer.toString());
+                        inputBuffer.setLength(0);
+                        bufferSize = IntBuffer.allocate(1);
+                        buffer = ByteBuffer.allocateDirect(inputByteLength);
+                    } else if (result == LibUsb.ERROR_TIMEOUT) {
+                        // Timeout, puoi gestirlo come preferisci
+                        // System.err.println("Timeout while waiting for data.");
+                    } else {
+                        throw new LibUsbException("Unable to perform bulk transfer", result);
                     }
-                    doOnInput.accept(inputBuffer.toString());
-                    inputBuffer.setLength(0);
-                    bufferSize = IntBuffer.allocate(1);
-                    buffer = ByteBuffer.allocateDirect(inputByteLength);
-                } else if (result == LibUsb.ERROR_TIMEOUT) {
-                    // Timeout, puoi gestirlo come preferisci
-                    // System.err.println("Timeout while waiting for data.");
-                } else {
-                    throw new LibUsbException("Unable to perform bulk transfer", result);
+                } catch (Exception e) {
+                    if (handle != null) {
+                        LibUsb.close(handle);
+                    }
+                    throw e;
                 }
             }
         }

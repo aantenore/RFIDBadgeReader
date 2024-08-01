@@ -13,8 +13,8 @@ import org.usb4java.Device;
 
 import javax.swing.*;
 import java.awt.*;
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
+import java.io.*;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -22,9 +22,21 @@ import java.util.TimerTask;
 import java.util.function.Function;
 
 public class BadgeApp {
+
+    static final String LOCK_FILE_PATH = "badgeApp.lock";
+    private static FileChannel lockChannel;
+
     public static void main(String[] args) throws Exception {
 
         boolean trayIconMounted = false;
+
+        Runtime.getRuntime().addShutdownHook(new Thread(BadgeApp::releaseLock));
+
+        if (!acquireLock()) {
+            System.out.println("L'applicazione è già in esecuzione.");
+            System.exit(0);
+            return;
+        }
 
         while (true) {
             try {
@@ -66,10 +78,11 @@ public class BadgeApp {
                 }
                 while (true) {}
             } catch (Exception e) {
-                e.printStackTrace();
-                System.out.println("Il programma si chiuderà automaticamente tra 10 secondi.");
-                Thread.sleep(10000);
-                System.exit(-1);
+                e.printStackTrace(System.out);
+                //System.out.println("Il programma si chiuderà automaticamente tra 10 secondi.");
+                System.out.println("Riavvio in corso... \n Errore: \n");
+                e.printStackTrace(System.out);
+                Thread.sleep(5000);
             }
         }
     }
@@ -109,9 +122,9 @@ public class BadgeApp {
         if(Objects.isNull(device)) {
             System.out.println("Nessun lettore trovato controlla di averlo collegato correttamente e riprova.");
             System.out.println("Ricorda che il vendorId e il productId sono configurati nel file files.properties sotto la chiave scanner.vendorId e scanner.productId");
-            System.out.println("Il programma si chiuderà automaticamente tra 5 secondi.");
-            Thread.sleep(5000);
-            System.exit(-1);
+            //System.out.println("Il programma si chiuderà automaticamente tra 5 secondi.");
+            System.out.println("Riavvio in corso... \n");
+            //System.exit(-1);
         }
         eventManager.registerHandlingForDevice(
                 device,
@@ -128,5 +141,34 @@ public class BadgeApp {
                 }
         );
         //}
+
+    }
+
+    private static boolean acquireLock() {
+        try {
+            File file = new File(LOCK_FILE_PATH);
+            if (!file.exists()) {
+                file.createNewFile();
+            }
+            lockChannel = new RandomAccessFile(file, "rw").getChannel();
+            return lockChannel.tryLock() != null;
+        } catch (IOException e) {
+            e.printStackTrace(System.out);
+            return false;
+        }
+    }
+
+    private static void releaseLock() {
+        try {
+            if (lockChannel != null) {
+                lockChannel.close();
+                File file = new File(LOCK_FILE_PATH);
+                if (file.exists()) {
+                    file.delete();
+                }
+            }
+        } catch (IOException e) {
+            System.out.println(e.getMessage());
+        }
     }
 }
